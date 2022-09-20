@@ -46,7 +46,7 @@ class User(models.Model):
     dislikes = models.ManyToManyField(
         Recipe,
         related_name='disliked_users',
-        verbose_name= 'Не понравившееся рецерт',
+        verbose_name= 'Не понравившееся рецерты',
         blank=True
     )
 
