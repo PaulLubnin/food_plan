@@ -1,5 +1,7 @@
 from django.db import models
- 
+from django.core.validators import RegexValidator
+
+
 
 class Category(models.Model):
     title = models.CharField('Название', max_length=150)
@@ -36,7 +38,12 @@ class Recipe(models.Model):
 class User(models.Model):
     telegramm_id = models.IntegerField('Telegram ID')
     name = models.CharField('Имя', max_length=150)
-    phone = models.CharField('Номер телефона', max_length=20)
+    phone_number_regex = RegexValidator(regex = r"^\+?1?\d{8,15}$")
+    phone_number = models.CharField(
+        validators = [phone_number_regex],
+        max_length = 16,
+        unique = True,
+        null=True)
     likes = models.ManyToManyField(
         Recipe,
         related_name='liked_users',
