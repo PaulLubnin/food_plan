@@ -35,7 +35,7 @@ class Recipe(models.Model):
         verbose_name_plural = 'Рецепты'
 
 
-class User(models.Model):
+class Customer(models.Model):
     telegramm_id = models.IntegerField('Telegram ID')
     name = models.CharField('Имя', max_length=150)
     phone_number_regex = RegexValidator(regex = r"^\+?1?\d{8,15}$")
