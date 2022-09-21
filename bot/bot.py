@@ -9,20 +9,9 @@ from telegram.ext import (
     Filters,
 )
 from handlers import (
-    AWAIT_AGREEMENT,
-    AWAIT_NAME,
-    AWAIT_PHONE,
-    AWAIT_MENU_CHOICE,
-    AWAIT_RECIPE_ACTION,
-    AWAIT_FAVORITES_ACTION,
-    FINISH,
-    start,
-    handle_agreement,
-    handle_name,
-    handle_phone,
-    show_menu,
-    show_recipe,
-    show_favorites
+    AWAIT_AGREEMENT, AWAIT_NAME, AWAIT_PHONE, AWAIT_MENU_CHOICE, AWAIT_RECIPE_ACTION, AWAIT_FAVORITES_ACTION,
+    FINISH, start, handle_agreement, handle_name, handle_phone, handle_menu_choice, handle_recipe_action,
+    handle_favorites_action
 )
 
 logger = logging.getLogger(__name__)
@@ -44,30 +33,29 @@ def main():
         entry_points=[CommandHandler('start', start)],
         states={
             AWAIT_AGREEMENT: [
-                CallbackQueryHandler(handle_agreement, pattern='agree$'),
+                CallbackQueryHandler(handle_agreement, pattern=r'\w*agree$'),
             ],
             AWAIT_NAME: [
                 MessageHandler(Filters.text & ~Filters.command, handle_name),
             ],
             AWAIT_PHONE: [
-                MessageHandler(Filters.text & ~Filters.command, handle_phone),
+                MessageHandler(Filters.text | Filters.contact & ~Filters.command, handle_phone),
             ],
             AWAIT_MENU_CHOICE: [
-                CallbackQueryHandler(show_recipe, pattern='^recipe$'),
-                CallbackQueryHandler(show_favorites, pattern='^favorites$'),
+                CallbackQueryHandler(handle_recipe_action, pattern='^recipe$'),
+                CallbackQueryHandler(handle_favorites_action, pattern='^favorites$'),
             ],
             AWAIT_RECIPE_ACTION: [
-                CallbackQueryHandler(show_menu, pattern='^menu$'),
-                CallbackQueryHandler(show_recipe, pattern='^like'),
-                CallbackQueryHandler(show_recipe, pattern='^dislike'),
+                CallbackQueryHandler(handle_menu_choice, pattern='^menu$'),
+                CallbackQueryHandler(handle_recipe_action, pattern=r'\w*like$'),
             ],
             AWAIT_FAVORITES_ACTION: [
-                CallbackQueryHandler(show_menu, pattern='^menu$'),
-                CallbackQueryHandler(show_favorites, pattern='^page'),
-                CallbackQueryHandler(show_recipe, pattern='^recipe'),
+                CallbackQueryHandler(handle_menu_choice, pattern='^menu$'),
+                CallbackQueryHandler(handle_favorites_action, pattern='^page'),
+                CallbackQueryHandler(handle_recipe_action, pattern='^recipe'),
             ],
             FINISH: [
-                CallbackQueryHandler(start, pattern='^start$')
+                CommandHandler('start', start)
             ]
         },
         fallbacks=[],
