@@ -4,7 +4,7 @@ from django.core.validators import RegexValidator
 
 
 class Category(models.Model):
-    title = models.CharField('Название', max_length=150)
+    title = models.CharField('Название', max_length=150, unique=True)
 
     def __str__(self):
         return self.title
@@ -24,8 +24,8 @@ class Recipe(models.Model):
     description = models.TextField('Описание', blank=True)
     instruction = models.TextField('Инструкция приготовления', blank=True)
     ingredients = models.TextField('Ингридиенты', blank=True)
-    price = models.FloatField('Цена', blank=True)
-    image = models.ImageField('Картинка', upload_to='images/')
+    price = models.FloatField('Цена', blank=True, null=True)
+    image = models.ImageField('Картинка', upload_to='images/', blank=True)
     
     def __str__(self):
         return self.title

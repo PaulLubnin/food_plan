@@ -163,3 +163,4 @@ cython_debug/
 /files
 /media
 *.pdf
+data_recipies.json
