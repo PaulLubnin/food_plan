@@ -2,7 +2,6 @@ from django.db import models
 from django.core.validators import RegexValidator
 
 
-
 class Category(models.Model):
     title = models.CharField('Название', max_length=150, unique=True)
 
@@ -26,10 +25,10 @@ class Recipe(models.Model):
     ingredients = models.TextField('Ингридиенты', blank=True)
     price = models.FloatField('Цена', blank=True, null=True)
     image = models.ImageField('Картинка', upload_to='images/', blank=True)
-    
+
     def __str__(self):
         return self.title
-    
+
     class Meta:
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
@@ -38,11 +37,11 @@ class Recipe(models.Model):
 class Customer(models.Model):
     telegramm_id = models.IntegerField('Telegram ID')
     name = models.CharField('Имя', max_length=150)
-    phone_number_regex = RegexValidator(regex = r"^\+?1?\d{8,15}$")
+    phone_number_regex = RegexValidator(regex=r"^\+?1?\d{8,15}$")
     phone_number = models.CharField(
-        validators = [phone_number_regex],
-        max_length = 16,
-        unique = True,
+        validators=[phone_number_regex],
+        max_length=16,
+        unique=True,
         null=True)
     likes = models.ManyToManyField(
         Recipe,
@@ -53,7 +52,7 @@ class Customer(models.Model):
     dislikes = models.ManyToManyField(
         Recipe,
         related_name='disliked_users',
-        verbose_name= 'Не понравившееся рецерты',
+        verbose_name='Непонравившееся рецерты',
         blank=True
     )
 

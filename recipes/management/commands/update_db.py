@@ -5,17 +5,21 @@ import requests
 import os
 from urllib.parse import urlparse
 from os.path import splitext, basename
+from django.core.files.base import ContentFile
 
 
-def image_download(url, path):
-    response = requests.get(url)
+def get_image_content(image_url):
+    response = requests.get(image_url)
     response.raise_for_status()
-    with open(path, 'wb') as file:
-        file.write(response.content)
+    url_parse = urlparse(image_url)
+    image_name, image_ext = splitext(basename(url_parse.path))
+    image_name = f'{image_name}{image_ext}'
+    image_content = ContentFile(response.content, name=image_name)
+    return image_content
 
 
 class Command(BaseCommand):
-    help = 'Зашрузить данные из data_recipies.json в БД'
+    help = 'Загрузить данные из data_recipes.json в БД'
 
     def handle(self, *args, **options):
         with open("data_recipes.json", "r", encoding="UTF-8") as file:
@@ -30,12 +34,8 @@ class Command(BaseCommand):
             category = Category.objects.get(title=raw_recipe['category'])
 
             image_url = raw_recipe['image']
-            url_parse = urlparse(image_url)
-            image_name, image_ext = splitext(basename(url_parse.path))
-            
-            image_path = os.path.join(path, f'{image_name}_{num}{image_ext}')
-            image_download(image_url, image_path)
-            
+            image_content = get_image_content(image_url)
+
             ingredients = ''
             for index, ingredient in enumerate(raw_recipe['ingredients'][0]):
                 ingredients += f'{ingredient} - {raw_recipe["ingredients"][1][index]}\n'
@@ -49,6 +49,7 @@ class Command(BaseCommand):
                 description=raw_recipe['description'],
                 instruction=instruction,
                 ingredients=ingredients,
+                image=image_content
             )
             recipe.save()
 
