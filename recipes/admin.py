@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import Category, Customer, Recipe
+from django.utils.safestring import mark_safe
 
 
 @admin.register(Category)
@@ -14,4 +15,7 @@ class CustomerAdmin(admin.ModelAdmin):
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
-    pass
+    readonly_fields = ["preview"]
+
+    def preview(self, obj):
+        return mark_safe(f'<img src="{obj.image.url}" height="200px">')
