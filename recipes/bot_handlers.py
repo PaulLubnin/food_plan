@@ -1,6 +1,8 @@
 import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
 
+from recipes.models import Customer
+
 logger = logging.getLogger(__name__)
 
 (
@@ -14,17 +16,28 @@ logger = logging.getLogger(__name__)
 ) = range(7)
 
 
-def start(update, context):
+def start(update, context, again=False):
+    try:
+        customer = Customer.objects.get(telegramm_id=update.message.from_user.id)
+        if customer.name and customer.phone_number:
+            return show_menu(update, context)
+        elif customer.name:
+            return request_contact(update, context)
+    except Customer.DoesNotExist:
+        pass
     keyboard = []
     keyboard.append([
         InlineKeyboardButton('✅ Принять', callback_data='agree'),
         InlineKeyboardButton('❌ Отклонить', callback_data='disagree'),
     ])
+    caption = 'Чтобы продолжить, вы должны согласиться с политикой обработки персональных данных'
+    if not again:
+        caption = f'Вас приветствует FoodPlan! {caption}'
     with open('agreement.pdf', 'rb') as agreement_pdf_file:
         context.bot.send_document(
             update.message.from_user.id,
             agreement_pdf_file,
-            caption='Вас приветствует FoodPlan! Продолжая работу, вы соглашаетесь с обработкой персональных данных.',
+            caption=caption,
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     return AWAIT_AGREEMENT
@@ -38,20 +51,22 @@ def handle_agreement(update, context):
             'Пожалуйста, напишите ваши имя и фамилию'
         )
         return AWAIT_NAME
-    query.message.reply_text(
-        'Вы не согласились с политикой обработки персональных данных. Нажмите /start для повторного вызова.'
-    )
-    return FINISH
+    update.message = query.message
+    update.message.from_user = query.from_user
+    start(update, context, again=True)
 
 
 def handle_name(update, context):
-    customer_name = update.message.text
-    print(customer_name)
-    # TODO: save customer name
+    customer, created = Customer.objects.get_or_create(telegramm_id=update.message.from_user.id)
+    customer.name = update.message.text
+    customer.save()
+    return request_contact(update, context)
+
+
+def request_contact(update, context):
     keyboard = [[KeyboardButton('☎ Передать контакт', request_contact=True)]]
-    # update.message.delete()
     update.message.reply_text(
-        'Укажите ваш телефон, нажав на кнопку «Передать контакт», или простым текстом',
+        'Укажите ваш телефон, нажав на кнопку «Передать контакт», или текстом в формате +79123456789',
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     )
     return AWAIT_PHONE
@@ -62,15 +77,25 @@ def handle_phone(update, context):
         phone_number = update.message.contact.phone_number
     else:
         phone_number = update.message.text
-    print(phone_number)
-    # TODO: save customer phone number
+    customer, created = Customer.objects.get_or_create(telegramm_id=update.message.from_user.id)
+    customer.phone_number = phone_number
+    customer.save()
+    # TODO: validate customer phone number
+    update.message.reply_text(
+        'Спасибо за регистрацию!',
+        reply_markup=ReplyKeyboardMarkup([[]])
+    )
+    return show_menu(update, context)
+
+
+def show_menu(update, context):
     keyboard = []
     keyboard.append([
         InlineKeyboardButton('🍽️ Получить рецепт', callback_data='recipe'),
         InlineKeyboardButton('💖 Избранное', callback_data='favorites'),
     ])
     update.message.reply_text(
-        'Спасибо за регистрацию!',
+        'Уже голодны?',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
     return AWAIT_MENU_CHOICE
