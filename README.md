@@ -22,3 +22,11 @@ python manage.py migrate
 python manage.py runserver
 ```
 * Перейдите по ссылке в командной строке
+
+### Загрузка данных
+```
+python manage.py load_recipes -p [page_number]
+```
+* скрипт загружает по 14 рецептов с сайта eda.ru за один раз. 
+  `page_number` - номер страницы со списком рецептов.
+  Рецепты ДОБАВЛЯЮТСЯ в `data_recipes.json`
