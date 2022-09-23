@@ -2,7 +2,7 @@ import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
 
 from django.core.exceptions import ValidationError
-from recipes.models import Customer, Recipe
+from recipes.models import Customer, Recipe, Category
 
 logger = logging.getLogger(__name__)
 
@@ -11,10 +11,11 @@ logger = logging.getLogger(__name__)
     AWAIT_NAME,
     AWAIT_PHONE,
     AWAIT_MENU_CHOICE,
+    AWAIT_CATEGORY_CHOICE,
     AWAIT_RECIPE_ACTION,
     AWAIT_FAVORITES_ACTION,
     FINISH
-) = range(7)
+) = range(8)
 
 
 def start(update, context, again=False):
@@ -99,6 +100,9 @@ def show_menu(update, context, back=False):
     keyboard = []
     keyboard.append([
         InlineKeyboardButton('🧑‍🍳 Случайный рецепт', callback_data='recipe'),
+        InlineKeyboardButton('🍳 Выбрать раздел', callback_data='categories')
+    ])
+    keyboard.append([
         InlineKeyboardButton('💖 Избранное', callback_data='favorites'),
     ])
     if back:
@@ -115,6 +119,15 @@ def return_to_menu_from_recipe(update, context):
     return show_menu(update, context, back=True)
 
 
+def show_categories(update, context):
+    query = update.callback_query
+    keyboard = []
+    for category in Category.objects.all():
+        keyboard.append([InlineKeyboardButton(category.title, callback_data=f'category-{category.id}')])
+    query.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+    return AWAIT_CATEGORY_CHOICE
+
+
 def show_recipe(update, context, after_dislike=False):
     query = update.callback_query
     if query.message.text == 'Уже голодны?':
@@ -125,7 +138,13 @@ def show_recipe(update, context, after_dislike=False):
         query.message.delete()
         context.bot.delete_message(query.from_user.id, int(query.message.message_id) - 1)
     customer = Customer.objects.get(telegramm_id=query.from_user.id)
-    recipe = Recipe.objects.exclude(disliked_users=customer).order_by('?').first()
+    recipes = Recipe.objects.all()
+    if 'category' in query.data:
+        recipes = recipes.filter(category__id=int(query.data.replace('category-', '')))
+    recipe = recipes.exclude(disliked_users=customer).order_by('?').first()
+    if not recipe:
+        query.message.reply_text('По этому критерию рецептов не найдено')
+        return show_menu(update, context)
     if not recipe.image:
         image_filename = 'default.jpg'
     else:
