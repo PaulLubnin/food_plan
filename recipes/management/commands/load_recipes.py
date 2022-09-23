@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 from django.core.management.base import BaseCommand
+from slugify import slugify
 
 
 class Command(BaseCommand):
@@ -44,9 +45,26 @@ def get_lists_url(page_number: list):
 def get_category(recipe_url: str):
     """Функция парсит урл и возвращает из него категорию блюда."""
 
+    category_slug = {
+        'zagotovki': 'Заготовки',
+        'vypechka-deserty': 'Выпечка и десерты',
+        'osnovnye-blyuda': 'Основные блюда',
+        'zavtraki': 'Завтраки',
+        'salaty': 'Салаты',
+        'supy': 'Супы',
+        'pasta-picca': 'Паста/пицца',
+        'zakuski': 'Закуски',
+        'sendvichi': 'Сэндвичи',
+        'rizotto': 'Ризотто',
+        'napitki': 'Напитки',
+        'sousy-marinady': 'Соусы/маринады',
+        'bulony': 'Бульоны'
+    }
+
     url = urlparse(recipe_url)
     category = url.path.split('/')
-    return category[2]
+    if category[2] in category_slug.keys():
+        return category_slug[category[2]]
 
 
 def get_recipe_text(bs4_soup):
