@@ -11,8 +11,8 @@ from telegram.ext import (
 )
 from recipes.bot_handlers import (
     AWAIT_AGREEMENT, AWAIT_NAME, AWAIT_PHONE, AWAIT_MENU_CHOICE, AWAIT_RECIPE_ACTION, AWAIT_FAVORITES_ACTION,
-    FINISH, start, handle_agreement, handle_name, handle_phone, handle_recipe_action,
-    handle_favorites_action, show_menu, show_recipe, show_favorites
+    FINISH, start, handle_agreement, handle_name, handle_phone, handle_recipe_action, handle_favorites_action,
+    show_menu, show_recipe, show_favorites, return_to_menu_from_recipe
 )
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ class Command(BaseCommand):
                     CallbackQueryHandler(show_favorites, pattern='^favorites$'),
                 ],
                 AWAIT_RECIPE_ACTION: [
-                    CallbackQueryHandler(show_menu, pattern='^menu$'),
+                    CallbackQueryHandler(return_to_menu_from_recipe, pattern='^menu$'),
                     CallbackQueryHandler(handle_recipe_action, pattern=r'\w*like-\d+'),
                 ],
                 AWAIT_FAVORITES_ACTION: [

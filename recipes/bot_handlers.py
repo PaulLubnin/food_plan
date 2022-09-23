@@ -84,48 +84,52 @@ def handle_phone(update, context):
         customer.full_clean()
     except ValidationError:
         context.bot.delete_message(update.message.from_user.id, int(update.message.message_id) - 1)
-        # context.bot.edit_message_reply_markup(
-        #     chat_id=update.message.from_user.id,
-        #     message_id=int(update.message.message_id) - 1,
-        #     reply_markup=None
-        # )
-        update.message.reply_text(
-            'Неверный формат телефона'
-        )
+        update.message.reply_text('Неверный формат телефона')
         return request_contact(update, context)
     customer.save()
-    update.message.reply_to_message.delete()
+    context.bot.delete_message(update.message.from_user.id, int(update.message.message_id) - 1)
     return show_menu(update, context)
 
 
-def show_menu(update, context):
+def show_menu(update, context, back=False):
     if update.callback_query:
         message = update.callback_query.message
     else:
         message = update.message
     keyboard = []
     keyboard.append([
-        InlineKeyboardButton('🍴 Получить рецепт', callback_data='recipe'),
+        InlineKeyboardButton('🧑‍🍳 Случайный рецепт', callback_data='recipe'),
         InlineKeyboardButton('💖 Избранное', callback_data='favorites'),
     ])
-    message.reply_text(
-        'Уже голодны?',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    if back:
+        message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+    else:
+        message.reply_text(
+            'Уже голодны?',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
     return AWAIT_MENU_CHOICE
+
+
+def return_to_menu_from_recipe(update, context):
+    return show_menu(update, context, back=True)
 
 
 def show_recipe(update, context, after_dislike=False):
     query = update.callback_query
-    query.message.delete()
+    if query.message.text == 'Уже голодны?':
+        query.message.delete()
+    else:
+        query.message.edit_reply_markup(reply_markup=None)
     if after_dislike:
+        query.message.delete()
         context.bot.delete_message(query.from_user.id, int(query.message.message_id) - 1)
     customer = Customer.objects.get(telegramm_id=query.from_user.id)
     recipe = Recipe.objects.exclude(disliked_users=customer).order_by('?').first()
     if not recipe.image:
         image_filename = 'default.jpg'
     else:
-        image_filename = recipe.image
+        image_filename = recipe.image.path
     keyboard = []
     keyboard.append([
         InlineKeyboardButton('👍 Буду готовить!', callback_data=f'like-{recipe.id}'),
@@ -158,8 +162,9 @@ def handle_recipe_action(update, context):
         recipe_id = int(query.data.replace('like-', ''))
         customer.likes.add(Recipe.objects.get(id=recipe_id))
         query.answer('Рецепт добавлен в избранное')
+        keyboard = [[InlineKeyboardButton('⬅️ В меню', callback_data='menu')]]
+        query.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
     return AWAIT_RECIPE_ACTION
-    return AWAIT_MENU_CHOICE
 
 
 def show_favorites(update, context):
