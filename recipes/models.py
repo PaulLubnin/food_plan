@@ -1,5 +1,5 @@
-from django.db import models
 from django.core.validators import RegexValidator
+from django.db import models
 
 
 class Category(models.Model):
@@ -9,8 +9,8 @@ class Category(models.Model):
         return self.title
 
     class Meta:
-        verbose_name = 'Категория блида'
-        verbose_name_plural = 'Категории блюд'    
+        verbose_name = 'Категория блюда'
+        verbose_name_plural = 'Категории блюд'
 
 
 class Recipe(models.Model):
@@ -22,7 +22,7 @@ class Recipe(models.Model):
     )
     description = models.TextField('Описание', blank=True)
     instruction = models.TextField('Инструкция приготовления', blank=True)
-    ingredients = models.TextField('Ингридиенты', blank=True)
+    ingredients = models.TextField('Ингредиенты', blank=True)
     price = models.FloatField('Цена', blank=True, null=True)
     image = models.ImageField('Картинка', upload_to='images/', blank=True)
 
@@ -46,13 +46,13 @@ class Customer(models.Model):
     likes = models.ManyToManyField(
         Recipe,
         related_name='liked_users',
-        verbose_name='Понравившееся рецерты',
+        verbose_name='Понравившееся рецепты',
         blank=True
     )
     dislikes = models.ManyToManyField(
         Recipe,
         related_name='disliked_users',
-        verbose_name='Непонравившееся рецерты',
+        verbose_name='Не понравившиеся рецепты',
         blank=True
     )
 

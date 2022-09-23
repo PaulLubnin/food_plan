@@ -1,4 +1,5 @@
 import json
+import time
 from urllib.parse import urlparse
 
 import requests
@@ -12,6 +13,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             '-p', '--page',
+            nargs='+',
             type=int,
             help='Номер страницы',
         )
@@ -22,10 +24,10 @@ class Command(BaseCommand):
         writes_json(recipes)
 
 
-def get_lists_url(page_number: int):
+def get_lists_url(page_number: list):
     """Функция парсит урлы рецептов с сайта eda.ru и возвращает список из урлов."""
 
-    urls_list = [f'https://eda.ru/recepty?page={page_number}']
+    urls_list = [f'https://eda.ru/recepty?page={number}' for number in range(page_number[0], page_number[1])]
 
     recipe_urls = []
     for url in urls_list:
@@ -42,9 +44,26 @@ def get_lists_url(page_number: int):
 def get_category(recipe_url: str):
     """Функция парсит урл и возвращает из него категорию блюда."""
 
+    category_slug = {
+        'zagotovki': 'Заготовки',
+        'vypechka-deserty': 'Выпечка и десерты',
+        'osnovnye-blyuda': 'Основные блюда',
+        'zavtraki': 'Завтраки',
+        'salaty': 'Салаты',
+        'supy': 'Супы',
+        'pasta-picca': 'Паста/пицца',
+        'zakuski': 'Закуски',
+        'sendvichi': 'Сэндвичи',
+        'rizotto': 'Ризотто',
+        'napitki': 'Напитки',
+        'sousy-marinady': 'Соусы/маринады',
+        'bulony': 'Бульоны'
+    }
+
     url = urlparse(recipe_url)
     category = url.path.split('/')
-    return category[2]
+    if category[2] in category_slug.keys():
+        return category_slug[category[2]]
 
 
 def get_recipe_text(bs4_soup):
@@ -69,6 +88,7 @@ def get_recipes(recipes_urls: list):
     """Функция собирает словарь из блюд."""
 
     recipes_list = []
+    count_page = 0
     for url in recipes_urls:
         response = requests.get(url)
         response.raise_for_status()
@@ -84,13 +104,16 @@ def get_recipes(recipes_urls: list):
 
         recipe = {
             'title': recipe_title[0],
-            'description': recipe_description,
+            'description': '' if len(recipe_description) == 0 else recipe_description[0],
             'ingredients': (ingredients_list, quantity_list),
             'instruction': (step_list, action_list),
             'category': get_category(url),
             'image': image_dish[0]
         }
         recipes_list.append(recipe)
+        time.sleep(0.5)
+        count_page += 1
+        print(f'Загружен {count_page} рецепт')
 
     return recipes_list
 
@@ -98,6 +121,6 @@ def get_recipes(recipes_urls: list):
 def writes_json(array: list):
     """Функция записывает данные в json файл."""
 
-    with open('data_recipes.json', 'a', encoding='utf8') as file:
+    with open('data_recipes.json', 'w', encoding='utf8') as file:
         json.dump(array, file, ensure_ascii=False)
     print('Рецепты записаны в "data_recipes.json"')
