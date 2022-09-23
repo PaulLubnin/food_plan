@@ -196,7 +196,10 @@ def handle_recipe_action(update, context):
 def show_favorites(update, context):
     products_per_page = 8
     query = update.callback_query
-    query.message.delete()
+    if query.message.text == 'Уже голодны?':
+        query.message.delete()
+    else:
+        query.message.edit_reply_markup(reply_markup=None)
     customer = Customer.objects.get(telegramm_id=query.from_user.id)
     page = 0
     if 'page' in query.data:
