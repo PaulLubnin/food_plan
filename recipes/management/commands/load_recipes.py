@@ -87,7 +87,7 @@ def get_recipes(recipes_urls: list):
 
         recipe = {
             'title': recipe_title[0],
-            'description': recipe_description,
+            'description': '' if len(recipe_description) == 0 else recipe_description[0],
             'ingredients': (ingredients_list, quantity_list),
             'instruction': (step_list, action_list),
             'category': get_category(url),
