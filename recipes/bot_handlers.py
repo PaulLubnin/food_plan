@@ -2,7 +2,7 @@ import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
 
 from django.core.exceptions import ValidationError
-from recipes.models import Customer, Recipe
+from recipes.models import Customer, Recipe, Category
 
 logger = logging.getLogger(__name__)
 
@@ -11,10 +11,11 @@ logger = logging.getLogger(__name__)
     AWAIT_NAME,
     AWAIT_PHONE,
     AWAIT_MENU_CHOICE,
+    AWAIT_CATEGORY_CHOICE,
     AWAIT_RECIPE_ACTION,
     AWAIT_FAVORITES_ACTION,
     FINISH
-) = range(7)
+) = range(8)
 
 
 def start(update, context, again=False):
@@ -84,56 +85,85 @@ def handle_phone(update, context):
         customer.full_clean()
     except ValidationError:
         context.bot.delete_message(update.message.from_user.id, int(update.message.message_id) - 1)
-        # context.bot.edit_message_reply_markup(
-        #     chat_id=update.message.from_user.id,
-        #     message_id=int(update.message.message_id) - 1,
-        #     reply_markup=None
-        # )
-        update.message.reply_text(
-            'Неверный формат телефона'
-        )
+        update.message.reply_text('Неверный формат телефона')
         return request_contact(update, context)
     customer.save()
-    update.message.reply_to_message.delete()
+    context.bot.delete_message(update.message.from_user.id, int(update.message.message_id) - 1)
     return show_menu(update, context)
 
 
-def show_menu(update, context):
+def show_menu(update, context, back=False):
     if update.callback_query:
         message = update.callback_query.message
     else:
         message = update.message
     keyboard = []
     keyboard.append([
-        InlineKeyboardButton('🍴 Получить рецепт', callback_data='recipe'),
+        InlineKeyboardButton('🧑‍🍳 Случайный рецепт', callback_data='recipe'),
+        InlineKeyboardButton('🍳 Выбрать раздел', callback_data='categories')
+    ])
+    keyboard.append([
         InlineKeyboardButton('💖 Избранное', callback_data='favorites'),
     ])
-    message.reply_text(
-        'Уже голодны?',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    if back:
+        message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+    else:
+        message.reply_text(
+            'Уже голодны?',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
     return AWAIT_MENU_CHOICE
+
+
+def return_to_menu(update, context):
+    return show_menu(update, context, back=True)
+
+
+def return_to_menu_from_favorites(update, context):
+    query = update.callback_query
+    query.message.delete()
+    return show_menu(update, context)
+
+
+def show_categories(update, context):
+    query = update.callback_query
+    keyboard = []
+    for category in Category.objects.all():
+        keyboard.append([InlineKeyboardButton(category.title, callback_data=f'category-{category.id}')])
+    query.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+    return AWAIT_CATEGORY_CHOICE
 
 
 def show_recipe(update, context, after_dislike=False):
     query = update.callback_query
-    query.message.delete()
+    if query.message.text == 'Уже голодны?' or 'recipe-' in query.data:
+        query.message.delete()
+    else:
+        query.message.edit_reply_markup(reply_markup=None)
     if after_dislike:
+        query.message.delete()
         context.bot.delete_message(query.from_user.id, int(query.message.message_id) - 1)
-    customer = Customer.objects.get(telegramm_id=query.from_user.id)
-    recipe = Recipe.objects.exclude(disliked_users=customer).order_by('?').first()
+    if 'recipe-' in query.data:
+        recipe = Recipe.objects.get(id=int(query.data.replace('recipe-', '')))
+    else:
+        customer = Customer.objects.get(telegramm_id=query.from_user.id)
+        recipes = Recipe.objects.all()
+        if 'category' in query.data:
+            recipes = recipes.filter(category__id=int(query.data.replace('category-', '')))
+        recipe = recipes.exclude(disliked_users=customer).order_by('?').first()
+    if not recipe:
+        query.message.reply_text('По этому критерию рецептов не найдено')
+        return show_menu(update, context)
     if not recipe.image:
         image_filename = 'default.jpg'
     else:
-        image_filename = recipe.image
+        image_filename = recipe.image.path
     keyboard = []
     keyboard.append([
         InlineKeyboardButton('👍 Буду готовить!', callback_data=f'like-{recipe.id}'),
         InlineKeyboardButton('👎 Хочу другой рецепт', callback_data=f'dislike-{recipe.id}'),
     ])
-    keyboard.append([
-        InlineKeyboardButton('⬅️ В меню', callback_data='menu')
-    ])
+    keyboard.append([InlineKeyboardButton('🏠 В меню', callback_data='menu')])
     with open(image_filename, 'rb') as image_file:
         query.message.reply_photo(
             image_file,
@@ -158,14 +188,32 @@ def handle_recipe_action(update, context):
         recipe_id = int(query.data.replace('like-', ''))
         customer.likes.add(Recipe.objects.get(id=recipe_id))
         query.answer('Рецепт добавлен в избранное')
+        keyboard = [[InlineKeyboardButton('🏠 В меню', callback_data='menu')]]
+        query.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
     return AWAIT_RECIPE_ACTION
-    return AWAIT_MENU_CHOICE
 
 
 def show_favorites(update, context):
+    products_per_page = 8
+    query = update.callback_query
+    query.message.delete()
+    customer = Customer.objects.get(telegramm_id=query.from_user.id)
+    page = 0
+    if 'page' in query.data:
+        page = int(query.data.replace('page-', ''))
+    keyboard = []
+    recipes = Recipe.objects.filter(liked_users=customer).order_by('title')
+    for recipe in recipes[page * products_per_page:(page + 1) * products_per_page]:
+        keyboard.append([InlineKeyboardButton(recipe.title, callback_data=f'recipe-{recipe.id}')])
+    pagination_buttons = []
+    if page > 0:
+        pagination_buttons.append(InlineKeyboardButton('⬅️ Предыдущие', callback_data=f'page-{page - 1}'))
+    if len(recipes) > (page + 1) * products_per_page:
+        pagination_buttons.append(InlineKeyboardButton('Следующие ➡️', callback_data=f'page-{page + 1}'))
+    keyboard.append(pagination_buttons)
+    keyboard.append([InlineKeyboardButton('🏠 В меню', callback_data='menu')])
+    query.message.reply_text(
+        'Вы поставили лайк этим блюдам:',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
     return AWAIT_FAVORITES_ACTION
-
-
-def handle_favorites_action(update, context):
-    return AWAIT_FAVORITES_ACTION
-    return AWAIT_MENU_CHOICE
