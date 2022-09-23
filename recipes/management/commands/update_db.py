@@ -1,11 +1,13 @@
-from django.core.management.base import BaseCommand
-from recipes.models import Recipe, Category
 import json
-import requests
 import os
-from urllib.parse import urlparse
 from os.path import splitext, basename
+from urllib.parse import urlparse
+
+import requests
 from django.core.files.base import ContentFile
+from django.core.management.base import BaseCommand
+
+from recipes.models import Recipe, Category
 
 
 def get_image_content(image_url):
@@ -23,8 +25,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         with open("data_recipes.json", "r", encoding="UTF-8") as file:
-            file_contents = json.load(file)
-        raw_recipes = file_contents
+            raw_recipes = json.load(file)
 
         path = os.path.join('media', 'images')
         os.makedirs(path, exist_ok=True)
