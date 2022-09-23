@@ -31,8 +31,8 @@ python manage.py start_bot
 
 ### Загрузка данных
 ```
-python manage.py load_recipes -p [page_number]
+python manage.py load_recipes -p [first_page_number] [second_page_number]
 ```
-* скрипт загружает по 14 рецептов с сайта eda.ru за один раз. 
-  `page_number` - номер страницы со списком рецептов.
-  Рецепты ДОБАВЛЯЮТСЯ в `data_recipes.json`
+* Скрипт загружает рецепты с сайта eda.ru. 
+  `first_page_number` и `second_page_number` - диапазон страниц.
+ Рецепты перезаписываются в `data_recipes.json`
