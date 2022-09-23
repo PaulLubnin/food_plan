@@ -9,10 +9,11 @@ from telegram.ext import (
     Updater,
     Filters,
 )
+
 from recipes.bot_handlers import (
     AWAIT_AGREEMENT, AWAIT_NAME, AWAIT_PHONE, AWAIT_MENU_CHOICE, AWAIT_CATEGORY_CHOICE, AWAIT_RECIPE_ACTION,
     AWAIT_FAVORITES_ACTION, FINISH, start, handle_agreement, handle_name, handle_phone, handle_recipe_action,
-    handle_favorites_action, show_menu, show_categories, show_recipe, show_favorites, return_to_menu_from_recipe
+    show_categories, show_recipe, show_favorites, return_to_menu, return_to_menu_from_favorites
 )
 
 logger = logging.getLogger(__name__)
@@ -54,13 +55,13 @@ class Command(BaseCommand):
                     CallbackQueryHandler(show_recipe, pattern='^category'),
                 ],
                 AWAIT_RECIPE_ACTION: [
-                    CallbackQueryHandler(return_to_menu_from_recipe, pattern='^menu$'),
+                    CallbackQueryHandler(return_to_menu, pattern='^menu$'),
                     CallbackQueryHandler(handle_recipe_action, pattern=r'\w*like-\d+'),
                 ],
                 AWAIT_FAVORITES_ACTION: [
-                    CallbackQueryHandler(show_menu, pattern='^menu$'),
-                    CallbackQueryHandler(handle_favorites_action, pattern='^page'),
-                    CallbackQueryHandler(handle_recipe_action, pattern='^recipe'),
+                    CallbackQueryHandler(return_to_menu_from_favorites, pattern='^menu$'),
+                    CallbackQueryHandler(show_recipe, pattern='^recipe'),
+                    CallbackQueryHandler(show_favorites, pattern='^page'),
                 ],
                 FINISH: [
                     CommandHandler('start', start)

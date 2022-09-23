@@ -115,8 +115,14 @@ def show_menu(update, context, back=False):
     return AWAIT_MENU_CHOICE
 
 
-def return_to_menu_from_recipe(update, context):
+def return_to_menu(update, context):
     return show_menu(update, context, back=True)
+
+
+def return_to_menu_from_favorites(update, context):
+    query = update.callback_query
+    query.message.delete()
+    return show_menu(update, context)
 
 
 def show_categories(update, context):
@@ -130,18 +136,21 @@ def show_categories(update, context):
 
 def show_recipe(update, context, after_dislike=False):
     query = update.callback_query
-    if query.message.text == 'Уже голодны?':
+    if query.message.text == 'Уже голодны?' or 'recipe-' in query.data:
         query.message.delete()
     else:
         query.message.edit_reply_markup(reply_markup=None)
     if after_dislike:
         query.message.delete()
         context.bot.delete_message(query.from_user.id, int(query.message.message_id) - 1)
-    customer = Customer.objects.get(telegramm_id=query.from_user.id)
-    recipes = Recipe.objects.all()
-    if 'category' in query.data:
-        recipes = recipes.filter(category__id=int(query.data.replace('category-', '')))
-    recipe = recipes.exclude(disliked_users=customer).order_by('?').first()
+    if 'recipe-' in query.data:
+        recipe = Recipe.objects.get(id=int(query.data.replace('recipe-', '')))
+    else:
+        customer = Customer.objects.get(telegramm_id=query.from_user.id)
+        recipes = Recipe.objects.all()
+        if 'category' in query.data:
+            recipes = recipes.filter(category__id=int(query.data.replace('category-', '')))
+        recipe = recipes.exclude(disliked_users=customer).order_by('?').first()
     if not recipe:
         query.message.reply_text('По этому критерию рецептов не найдено')
         return show_menu(update, context)
@@ -154,9 +163,7 @@ def show_recipe(update, context, after_dislike=False):
         InlineKeyboardButton('👍 Буду готовить!', callback_data=f'like-{recipe.id}'),
         InlineKeyboardButton('👎 Хочу другой рецепт', callback_data=f'dislike-{recipe.id}'),
     ])
-    keyboard.append([
-        InlineKeyboardButton('⬅️ В меню', callback_data='menu')
-    ])
+    keyboard.append([InlineKeyboardButton('🏠 В меню', callback_data='menu')])
     with open(image_filename, 'rb') as image_file:
         query.message.reply_photo(
             image_file,
@@ -181,15 +188,32 @@ def handle_recipe_action(update, context):
         recipe_id = int(query.data.replace('like-', ''))
         customer.likes.add(Recipe.objects.get(id=recipe_id))
         query.answer('Рецепт добавлен в избранное')
-        keyboard = [[InlineKeyboardButton('⬅️ В меню', callback_data='menu')]]
+        keyboard = [[InlineKeyboardButton('🏠 В меню', callback_data='menu')]]
         query.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
     return AWAIT_RECIPE_ACTION
 
 
 def show_favorites(update, context):
+    products_per_page = 8
+    query = update.callback_query
+    query.message.delete()
+    customer = Customer.objects.get(telegramm_id=query.from_user.id)
+    page = 0
+    if 'page' in query.data:
+        page = int(query.data.replace('page-', ''))
+    keyboard = []
+    recipes = Recipe.objects.filter(liked_users=customer).order_by('title')
+    for recipe in recipes[page * products_per_page:(page + 1) * products_per_page]:
+        keyboard.append([InlineKeyboardButton(recipe.title, callback_data=f'recipe-{recipe.id}')])
+    pagination_buttons = []
+    if page > 0:
+        pagination_buttons.append(InlineKeyboardButton('⬅️ Предыдущие', callback_data=f'page-{page - 1}'))
+    if len(recipes) > (page + 1) * products_per_page:
+        pagination_buttons.append(InlineKeyboardButton('Следующие ➡️', callback_data=f'page-{page + 1}'))
+    keyboard.append(pagination_buttons)
+    keyboard.append([InlineKeyboardButton('🏠 В меню', callback_data='menu')])
+    query.message.reply_text(
+        'Вы поставили лайк этим блюдам:',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
     return AWAIT_FAVORITES_ACTION
-
-
-def handle_favorites_action(update, context):
-    return AWAIT_FAVORITES_ACTION
-    return AWAIT_MENU_CHOICE
