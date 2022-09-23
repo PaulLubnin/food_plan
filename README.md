@@ -11,6 +11,7 @@ pip install -r requirements.txt
 SECRET_KEY=h7wfbk14otyo6qs-1l3^)i9h@(qo&fcfg=e6i@k*(nvg9^fg2f
 DEBUG=True
 ALLOWED_HOSTS=127.0.0.1
+TELEGRAM_TOKEN=<your_token>
 ```
 Примечание: SECRET_KEY - обязательно, у остальных заданы параметры по умолчанию (DEBUG = True, ALLOWED_HOSTS = ['127.0.0.1'])
 * Примените миграции:
@@ -22,6 +23,11 @@ python manage.py migrate
 python manage.py runserver
 ```
 * Перейдите по ссылке в командной строке
+
+### Запуск телеграм-бота
+```
+python manage.py start_bot
+```
 
 ### Загрузка данных
 ```
