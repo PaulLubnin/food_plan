@@ -143,7 +143,9 @@ def show_recipe(update, context, after_dislike=False):
     if after_dislike:
         query.message.delete()
         context.bot.delete_message(query.from_user.id, int(query.message.message_id) - 1)
+    recipe_is_favorite = False
     if 'recipe-' in query.data:
+        recipe_is_favorite = True
         recipe = Recipe.objects.get(id=int(query.data.replace('recipe-', '')))
     else:
         customer = Customer.objects.get(telegramm_id=query.from_user.id)
@@ -159,11 +161,17 @@ def show_recipe(update, context, after_dislike=False):
     else:
         image_filename = recipe.image.path
     keyboard = []
-    keyboard.append([
-        InlineKeyboardButton('👍 Буду готовить!', callback_data=f'like-{recipe.id}'),
-        InlineKeyboardButton('👎 Хочу другой рецепт', callback_data=f'dislike-{recipe.id}'),
-    ])
-    keyboard.append([InlineKeyboardButton('🏠 В меню', callback_data='menu')])
+    if recipe_is_favorite:
+        keyboard.append([
+            InlineKeyboardButton('❌ Удалить из избранного', callback_data=f'dislike-{recipe.id}'),
+            InlineKeyboardButton('🏠 В меню', callback_data='menu'),
+        ])
+    else:
+        keyboard.append([
+            InlineKeyboardButton('👍 Буду готовить!', callback_data=f'like-{recipe.id}'),
+            InlineKeyboardButton('👎 Хочу другой рецепт', callback_data=f'dislike-{recipe.id}'),
+        ])
+        keyboard.append([InlineKeyboardButton('🏠 В меню', callback_data='menu')])
     with open(image_filename, 'rb') as image_file:
         query.message.reply_photo(
             image_file,
@@ -181,14 +189,23 @@ def handle_recipe_action(update, context):
     customer = Customer.objects.get(telegramm_id=query.from_user.id)
     if 'dislike' in query.data:
         recipe_id = int(query.data.replace('dislike-', ''))
-        customer.dislikes.add(Recipe.objects.get(id=recipe_id))
-        query.answer('Рецепт добавлен в чёрный список')
+        recipe = Recipe.objects.get(id=recipe_id)
+        if customer in recipe.liked_users.all():
+            customer.likes.remove(recipe)
+            query.answer('Рецепт удалён из избранного')
+        else:
+            customer.dislikes.add(recipe)
+            query.answer('Рецепт добавлен в чёрный список')
         return show_recipe(update, context, after_dislike=True)
     elif 'like' in query.data:
         recipe_id = int(query.data.replace('like-', ''))
         customer.likes.add(Recipe.objects.get(id=recipe_id))
         query.answer('Рецепт добавлен в избранное')
-        keyboard = [[InlineKeyboardButton('🏠 В меню', callback_data='menu')]]
+        keyboard = []
+        keyboard.append([
+            InlineKeyboardButton('🧑‍🍳 Другой рецепт', callback_data='recipe'),
+            InlineKeyboardButton('🏠 В меню', callback_data='menu'),
+        ])
         query.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
     return AWAIT_RECIPE_ACTION
 
@@ -196,7 +213,10 @@ def handle_recipe_action(update, context):
 def show_favorites(update, context):
     products_per_page = 8
     query = update.callback_query
-    query.message.delete()
+    if query.message.text == 'Уже голодны?':
+        query.message.delete()
+    else:
+        query.message.edit_reply_markup(reply_markup=None)
     customer = Customer.objects.get(telegramm_id=query.from_user.id)
     page = 0
     if 'page' in query.data:

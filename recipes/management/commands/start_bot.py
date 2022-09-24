@@ -55,6 +55,7 @@ class Command(BaseCommand):
                     CallbackQueryHandler(show_recipe, pattern='^category'),
                 ],
                 AWAIT_RECIPE_ACTION: [
+                    CallbackQueryHandler(show_recipe, pattern='^recipe$'),
                     CallbackQueryHandler(return_to_menu, pattern='^menu$'),
                     CallbackQueryHandler(handle_recipe_action, pattern=r'\w*like-\d+'),
                 ],
@@ -67,7 +68,7 @@ class Command(BaseCommand):
                     CommandHandler('start', start)
                 ]
             },
-            fallbacks=[],
+            fallbacks=[CommandHandler('start', start)],
         )
 
         dispatcher.add_handler(conv_handler)
