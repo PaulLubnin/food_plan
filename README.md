@@ -36,3 +36,8 @@ python manage.py load_recipes -p [first_page_number] [second_page_number]
 * Скрипт загружает рецепты с сайта eda.ru. 
   `first_page_number` и `second_page_number` - диапазон страниц.
  Рецепты перезаписываются в `data_recipes.json`
+ ### Формирование базы данных
+ ```
+ python manage.py update_db
+ ```
+ Из сформированного на предыдущем этапе файла `data_recipes.json` рецепты запишутся в базу данных.
