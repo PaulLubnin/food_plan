@@ -1,5 +1,6 @@
 import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
+import os
 
 from django.core.exceptions import ValidationError
 from recipes.models import Customer, Recipe, Category
@@ -35,7 +36,8 @@ def start(update, context, again=False):
     caption = 'Чтобы продолжить, вы должны согласиться с политикой обработки персональных данных'
     if not again:
         caption = f'Вас приветствует FoodPlan! {caption}'
-    with open('agreement.pdf', 'rb') as agreement_pdf_file:
+    file_path = os.path.join('staticfiles', 'agreement.pdf')
+    with open(file_path, 'rb') as agreement_pdf_file:
         context.bot.send_document(
             update.message.from_user.id,
             agreement_pdf_file,
@@ -157,7 +159,7 @@ def show_recipe(update, context, after_dislike=False):
         query.message.reply_text('По этому критерию рецептов не найдено')
         return show_menu(update, context)
     if not recipe.image:
-        image_filename = 'default.jpg'
+        image_filename = os.path.join('staticfiles', 'default.jpg')
     else:
         image_filename = recipe.image.path
     keyboard = []
