@@ -1,5 +1,5 @@
 import logging
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, LabeledPrice, ReplyKeyboardMarkup
 import os
 
 from django.core.exceptions import ValidationError
@@ -15,8 +15,10 @@ logger = logging.getLogger(__name__)
     AWAIT_CATEGORY_CHOICE,
     AWAIT_RECIPE_ACTION,
     AWAIT_FAVORITES_ACTION,
+    AWAIT_PAYMENT,
+    HANDLE_PAYMENT,
     FINISH
-) = range(8)
+) = range(10)
 
 
 def start(update, context, again=False):
@@ -146,11 +148,13 @@ def show_recipe(update, context, after_dislike=False):
         query.message.delete()
         context.bot.delete_message(query.from_user.id, int(query.message.message_id) - 1)
     recipe_is_favorite = False
+    customer = Customer.objects.get(telegramm_id=query.from_user.id)
+    if not customer.subscriber and customer.recipes_shown >= 3:
+        return offer_subscription(update, context)
     if 'recipe-' in query.data:
         recipe_is_favorite = True
         recipe = Recipe.objects.get(id=int(query.data.replace('recipe-', '')))
     else:
-        customer = Customer.objects.get(telegramm_id=query.from_user.id)
         recipes = Recipe.objects.all()
         if 'category' in query.data:
             recipes = recipes.filter(category__id=int(query.data.replace('category-', '')))
@@ -183,6 +187,8 @@ def show_recipe(update, context, after_dislike=False):
         f'{recipe.ingredients.strip()}\n\n{recipe.instruction.strip()}',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+    customer.recipes_shown += 1
+    customer.save()
     return AWAIT_RECIPE_ACTION
 
 
@@ -239,3 +245,46 @@ def show_favorites(update, context):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
     return AWAIT_FAVORITES_ACTION
+
+
+def offer_subscription(update, context):
+    query = update.callback_query
+    keyboard = []
+    keyboard.append([
+        InlineKeyboardButton('💳 Оплатить', callback_data='pay'),
+        InlineKeyboardButton('🏠 В меню', callback_data='menu'),
+    ])
+    query.message.reply_text(
+        'Вы достигли лимита рецептов в пробном режиме. Пожалуйста, оформите подписку',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return AWAIT_PAYMENT
+
+
+def offer_payment(update, context):
+    token = context.bot_data['payment_provider_token']
+    query = update.callback_query
+    prices = [LabeledPrice('Подписка на сервис Foodplan', 19900)]
+    context.bot.send_invoice(query.from_user.id, 'Оплата подписки', ' ', 'foodplan_payment', token, 'RUB', prices)
+    return AWAIT_PAYMENT
+
+
+def handle_precheckout(update, context):
+    query = update.pre_checkout_query
+    if query.invoice_payload != 'foodplan_payment':
+        query.answer(ok=False, error_message='В процессе оплаты произошла ошибка')
+    else:
+        query.answer(ok=True)
+    return AWAIT_PAYMENT
+
+
+def handle_successful_payment(update, context):
+    customer = Customer.objects.get(telegramm_id=update.message.from_user.id)
+    customer.subscriber = True
+    customer.save()
+    keyboard = [[InlineKeyboardButton('🏠 В меню', callback_data='menu')]]
+    update.message.reply_text(
+        'Спасибо за оплату! Теперь вы можете смотреть неограниченное число рецептов',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return HANDLE_PAYMENT

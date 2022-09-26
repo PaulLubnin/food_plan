@@ -6,14 +6,16 @@ from telegram.ext import (
     CommandHandler,
     ConversationHandler,
     MessageHandler,
+    PreCheckoutQueryHandler,
     Updater,
     Filters,
 )
 
 from recipes.bot_handlers import (
     AWAIT_AGREEMENT, AWAIT_NAME, AWAIT_PHONE, AWAIT_MENU_CHOICE, AWAIT_CATEGORY_CHOICE, AWAIT_RECIPE_ACTION,
-    AWAIT_FAVORITES_ACTION, FINISH, start, handle_agreement, handle_name, handle_phone, handle_recipe_action,
-    show_categories, show_recipe, show_favorites, return_to_menu, return_to_menu_from_favorites
+    AWAIT_FAVORITES_ACTION, AWAIT_PAYMENT, HANDLE_PAYMENT, start, handle_agreement, handle_name, handle_phone,
+    handle_recipe_action, show_categories, show_recipe, show_favorites, return_to_menu, return_to_menu_from_favorites,
+    offer_payment, handle_precheckout, handle_successful_payment
 )
 
 logger = logging.getLogger(__name__)
@@ -64,14 +66,20 @@ class Command(BaseCommand):
                     CallbackQueryHandler(show_recipe, pattern='^recipe'),
                     CallbackQueryHandler(show_favorites, pattern='^page'),
                 ],
-                FINISH: [
-                    CommandHandler('start', start)
+                AWAIT_PAYMENT: [
+                    CallbackQueryHandler(offer_payment, pattern='^pay$'),
+                    MessageHandler(Filters.successful_payment, handle_successful_payment),
+                ],
+                HANDLE_PAYMENT: [
+                    CallbackQueryHandler(return_to_menu, pattern='^menu$'),
                 ]
             },
             fallbacks=[CommandHandler('start', start)],
         )
 
+        dispatcher.bot_data['payment_provider_token'] = env('TELEGRAM_PAYMENT_PROVIDER_TOKEN')
         dispatcher.add_handler(conv_handler)
+        dispatcher.add_handler(PreCheckoutQueryHandler(handle_precheckout))
 
         updater.start_polling()
         updater.idle()

@@ -55,6 +55,8 @@ class Customer(models.Model):
         verbose_name='Не понравившиеся рецепты',
         blank=True
     )
+    subscriber = models.BooleanField('Платный подписчик', default=False)
+    recipes_shown = models.IntegerField('Просмотрено рецептов', default=0)
 
     def __str__(self):
         return f'{self.name} {self.telegramm_id}'
