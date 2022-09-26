@@ -67,11 +67,12 @@ class Command(BaseCommand):
                     CallbackQueryHandler(show_favorites, pattern='^page'),
                 ],
                 AWAIT_PAYMENT: [
+                    CallbackQueryHandler(return_to_menu_from_favorites, pattern='^menu$'),
                     CallbackQueryHandler(offer_payment, pattern='^pay$'),
                     MessageHandler(Filters.successful_payment, handle_successful_payment),
                 ],
                 HANDLE_PAYMENT: [
-                    CallbackQueryHandler(return_to_menu, pattern='^menu$'),
+                    CallbackQueryHandler(return_to_menu_from_favorites, pattern='^menu$'),
                 ]
             },
             fallbacks=[CommandHandler('start', start)],
