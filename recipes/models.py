@@ -21,8 +21,8 @@ class Recipe(models.Model):
         verbose_name='Категории',
     )
     description = models.TextField('Описание', blank=True)
-    instruction = models.TextField('Инструкция приготовления', blank=True)
-    ingredients = models.TextField('Ингредиенты', blank=True)
+    instruction = models.TextField('Инструкция приготовления')
+    ingredients = models.TextField('Ингредиенты')
     price = models.FloatField('Цена', blank=True, null=True)
     image = models.ImageField('Картинка', upload_to='images/', blank=True)
 
